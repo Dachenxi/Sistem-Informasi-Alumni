@@ -1,10 +1,54 @@
 import customtkinter as ctk
+import re
+
+class MessageBox(ctk.CTkToplevel):
+    def __init__(self, title: str, message: str):
+        super().__init__()
+
+        # Main Window Config
+        self.title(title)
+        self.geometry("300x200")
+
+        self.resizable(False, False)
+
+        # Make the window modal and cannot interact with the main window
+        self.grab_set()
+        self.lift()
+
+        # Main Window Grid Config
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        # Main Frame for better padding and background color
+        self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="#242745")
+        self.main_frame.grid(row=0, column=0, sticky="nsew")
+
+        # Configure the grid inside the main_frame
+        self.main_frame.grid_rowconfigure(0, weight=1)  # Message row will expand
+        self.main_frame.grid_rowconfigure(1, weight=0)  # Button row will not expand
+        self.main_frame.grid_columnconfigure(0, weight=1)  # The single column will expand
+
+        # Label in Main Frame
+        message_label = ctk.CTkLabel(self.main_frame,
+                                     text=message,
+                                     font=ctk.CTkFont(size=14),
+                                     wraplength=300,  # Adjusted for new width
+                                     justify="left")
+        message_label.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+
+        # OK Button in Main Frame
+        ok_button = ctk.CTkButton(self.main_frame, text="OK", command=self.destroy, width=100)
+        ok_button.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="e")
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Sistem Informasi Alumni")
-        self.geometry(f"{1100}x{580}")
+        # 1. Define your desired window size
+        window_width = 1100
+        window_height = 580
+        self.geometry(f"{window_width}x{window_height}")
+        self.resizable(False, False)
         self.current_page = None
 
         # Main window grid
@@ -159,10 +203,10 @@ class AddNewAlumniPage(ctk.CTkScrollableFrame):
         self.form_frame.grid_columnconfigure(0, weight=1)
 
         # Form Entry
-        self.name_entry = self.create_label_entry("Nama Mahasiswa", 1, "Masukkan Nama Lengkap")
-        self.email_entry = self.create_label_entry("Email", 2, "Masukkan Email")
-        self.year_entry = self.create_label_entry("Tahun Lulus", 3, "Masukkan Tahun Lulus")
-        self.number = self.create_label_entry("No. Telepon", 4, "Masukkan No. Telepon")
+        self.name_entry = self.create_label_entry("Nama Mahasiswa", 1, "Example: John Doe")
+        self.email_entry = self.create_label_entry("Email", 2, "Example: xxxxx@xxxx.com")
+        self.year_entry = self.create_label_entry("Tahun Lulus", 3, "Example: 2020")
+        self.number = self.create_label_entry("No. Telepon", 4, "Example: 6208123456")
 
         # Faculty and Prodi
         self.faculty_combo = self.create_combo_box("Fakultas", 5,
@@ -173,19 +217,47 @@ class AddNewAlumniPage(ctk.CTkScrollableFrame):
         # Submit Button
         self.submit_btn = ctk.CTkButton(self.form_frame, text="Submit",
                                         font=ctk.CTkFont(size=16, weight="bold"), height=40,
-                                        command=self.submit_form)
+                                        command=self.validate_and_save)
         self.submit_btn.grid(row=7, column=0, padx=10, pady=20, sticky="ew")
 
     # Submit Button Function
-    def submit_form(self):
-        name = self.name_entry.get()
-        email = self.email_entry.get()
-        year = self.year_entry.get()
-        number = self.number.get()
-        faculty = self.faculty_combo.get()
-        prodi = self.prodi_combo.get()
+    def validate_and_save(self):
+        """
+        Validates all form fields and saves the data if valid.
+        Otherwise, it shows a single error message with all issues.
+        """
+        # Get values from entry widgets, using .strip() to remove whitespace
+        name = self.name_entry.get().strip()
+        email = self.email_entry.get().strip()
+        year = self.year_entry.get().strip()
+        number = self.number.get().strip()
 
-        print(f"Name: {name}, Email: {email}, Year: {year}, Number: {number}, Faculty: {faculty}, Prodi: {prodi}")
+        # 1. Create an empty list to hold error messages
+        error_messages = []
+
+        # 2. Check each field and append to the list if empty
+        if not name:
+            error_messages.append("- Nama wajib diisi.")
+        if not email:
+            error_messages.append("- Email wajib diisi.")
+        if email and not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
+            error_messages.append("- Format email tidak valid.")
+        if not year:
+            error_messages.append("- Tahun lulus wajib diisi.")
+        if year and not year.isdigit():
+            error_messages.append("- Tahun lulus harus berupa angka.")
+        if not number:
+            error_messages.append("- Nomor telepon wajib diisi.")
+
+        # 3. Check if the error list is populated
+        if error_messages:
+            # 4. If there are errors, join them and show a single message box
+            MessageBox("Input Tidak Valid", "Harap perbaiki kesalahan berikut:\n\n" + "\n".join(error_messages))
+            return  # Stop the function here
+
+        # 5. If the list is empty, proceed with saving the data
+        print("Validation successful! Saving data...")
+        MessageBox("Sukses", "Data alumni berhasil disimpan!")
 
     # Create Combo Box With Label
     def create_combo_box(self, text, row, values):
@@ -203,8 +275,8 @@ class AddNewAlumniPage(ctk.CTkScrollableFrame):
         label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
 
         # Entry
-        combo = ctk.CTkComboBox(combo_frame, values=values, width=500, height=35)
-        combo.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="ew")
+        combo = ctk.CTkComboBox(combo_frame, values=values, width=200, height=35)
+        combo.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="w")
 
         return combo
 
